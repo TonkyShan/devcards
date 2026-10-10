@@ -6,7 +6,7 @@ macOS 桌面开发者卡片：一张贴在桌面上的卡片，用标签页切�
 |---|---|---|
 | 周报 | 本周一以来你在各仓库的提交，由 claude 整理成周会用的周报（功能、分支、修复） | 每天 9 点、18 点 |
 | 站会 | 上一个工作日到现在的提交，整理成站会发言要点 | 每天 9 点、18 点 |
-| 仓库 | 按组列出有未提交改动、未推送提交或落后远端的仓库 | 每 15 分钟 |
+| 仓库 | 按组列出有未提交改动或未推送提交的仓库 | 每 15 分钟 |
 | 用量 | Claude Code 今天和本周的 token 用量，按天、项目、模型拆分 | 每 15 分钟 |
 | 待办 | ONES 上分配给你的未关闭工单，GitLab 上等你处理和你发起的合并请求 | 每 15 分钟 |
 | 发布 | 各服务在每个环境的当前版本（读 GitOps 部署仓库），以及最新发布分支的流水线状态 | 每 15 分钟 |
@@ -44,12 +44,14 @@ HOUR=17 ./install.sh ~/code    # 傍晚那次改到 17 点，默认 18 点
 {
   "roots": ["/Users/me/code"],
   "authors": [],
+  "tabs": ["weekly", "standup", "repos", "usage"],
   "groups": {"后端": ["shop-api", "pay-service"]}
 }
 ```
 
 - `roots`：存放仓库的目录，扫描其下一层带 `.git` 的子目录
 - `authors`：额外的提交身份（邮箱或名字）。默认已按每个仓库的 `git config user.email` 识别你的提交，只有用过别的邮箱提交时才需要填
+- `tabs`：可选，显示哪些标签及顺序，比如 `["weekly", "standup", "repos"]`；可用的名字是 `weekly`、`standup`、`repos`、`usage`、`todo`、`releases`、`hours`，不填则全部显示
 - `groups`：可选，手动指定仓库分组（组名 → 仓库目录名）。没指定的仓库按 `origin` 地址里的命名空间自动归组，比如 `git@host:backend/shop-api.git` 归到 `backend`
 
 ### 可选数据源

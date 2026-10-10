@@ -1,4 +1,4 @@
-"""仓库状态：按组列出有未提交改动、未推送提交或落后远端的仓库。只看本地，不 fetch。"""
+"""仓库状态：按组列出有未提交改动或未推送提交的仓库，其余只在概览里提一句。只看本地，不 fetch。"""
 import os
 import re
 
@@ -36,16 +36,27 @@ def attention(repo):
 
 
 def main():
-    total, flagged, sections = 0, 0, []
+    total, minor, by_group = 0, [], {}
     for group, paths in groups(config()).items():
-        lines = []
         for repo in paths:
             total += 1
             head, notes = attention(repo)
-            if notes:
-                lines.append(f"- **{os.path.basename(repo)}** `{head}`：" + "；".join(notes))
-        if lines:
-            flagged += len(lines)
-            sections.append(f"## {group}\n" + "\n".join(lines))
-    summary = f"{flagged} 个需要处理" if flagged else "全部干净"
-    write("repos", "仓库状态", "\n\n".join([f"## 概览\n- 共 {total} 个仓库，{summary}"] + sections))
+            name = os.path.basename(repo)
+            if not notes:
+                continue
+            if not any("未提交" in note or note.startswith("未推送") for note in notes):
+                minor.append(name)  # 没有本地工作，只是有未跟踪文件或没拉最新，不值得单列
+            else:
+                by_group.setdefault(group, []).append(f"- **{name}** `{head}`：" + "；".join(notes))
+
+    # 只有一个仓库的组并到"其他"，免得一组一行
+    merged = {group: lines for group, lines in by_group.items() if len(lines) > 1}
+    rest = [line for lines in by_group.values() if len(lines) == 1 for line in lines]
+    if rest:
+        merged["其他"] = rest
+    flagged = sum(len(lines) for lines in merged.values())
+    overview = [f"- 共 {total} 个仓库，" + (f"{flagged} 个有本地改动或未推送的提交" if flagged else "没有未提交或未推送的内容")]
+    if minor:
+        overview.append(f"- 另有 {len(minor)} 个只有未跟踪文件或落后远端：" + "、".join(minor))
+    write("repos", "仓库状态", "\n\n".join(
+        ["## 概览\n" + "\n".join(overview)] + [f"## {group}\n" + "\n".join(lines) for group, lines in merged.items()]))

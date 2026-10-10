@@ -22,7 +22,7 @@ quote = lambda s: urllib.parse.quote(s, safe="")
 
 
 def environments(base, deploy, ref, path):
-    lines = []
+    versioned, plain = [], []
     tree = gitlab.api(base, f"/projects/{deploy}/repository/tree?path={quote(path)}&ref={ref}&per_page=100")
     for env in sorted(item["name"] for item in tree if item["type"] == "tree"):
         directory = f"{path}/{env}"
@@ -36,9 +36,12 @@ def environments(base, deploy, ref, path):
             source = ""
         when = datetime.datetime.fromisoformat(last["committed_date"].replace("Z", "+00:00")).astimezone()
         # 有版本号时提交标题基本是重复信息，只在没有版本号时显示
-        detail = f"`{source}` · {when:%m-%d %H:%M}" if source else f"{when:%m-%d %H:%M} {last['title']}"
-        lines.append(f"- **{env}** {detail}")
-    return lines
+        if source:
+            versioned.append(f"- **{env}** `{source}` · {when:%m-%d %H:%M}")
+        else:
+            plain.append(f"- **{env}** {when:%m-%d %H:%M} {last['title']}")
+    # 只要有目录带 SOURCE_COMMIT，没带的就当作不是环境（比如公共的基础设施目录）
+    return versioned or plain
 
 
 def latest_release(base, project, prefix):

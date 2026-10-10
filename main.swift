@@ -16,7 +16,7 @@ struct Widget {
     }
 }
 
-let widgets = [
+let allWidgets = [
     Widget(id: "weekly", title: "周报", icon: "shippingbox.fill"),
     Widget(id: "standup", title: "站会", icon: "calendar"),
     Widget(id: "repos", title: "仓库", icon: "folder.fill"),
@@ -30,6 +30,15 @@ let widgets = [
 
 let dataDir = FileManager.default.homeDirectoryForCurrentUser
     .appendingPathComponent("Library/Application Support/WeeklyReport")
+
+// 配置里的 tabs 决定显示哪些标签及顺序，没配就全部显示
+let widgets: [Widget] = {
+    guard let data = try? Data(contentsOf: dataDir.appendingPathComponent("config.json")),
+          let config = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let tabs = config["tabs"] as? [String] else { return allWidgets }
+    let chosen = tabs.compactMap { id in allWidgets.first { $0.id == id } }
+    return chosen.isEmpty ? allWidgets : chosen
+}()
 
 final class Model: ObservableObject {
     @Published var texts: [String: String] = [:]
