@@ -1,14 +1,19 @@
 #!/bin/bash
 # 用法: ./install.sh <仓库所在目录>...
-# 编译桌面卡片应用，并安装三个 LaunchAgent：每天 9 点和 18 点（后者可用 HOUR=17 覆盖）生成周报与站会、
-# 每 15 分钟刷新仓库状态与用量、登录时启动卡片。
+# 编译桌面卡片应用，并安装三个 LaunchAgent：每天 9 点和 18 点（后者可用 HOUR=17 覆盖）生成周报、站会与工时、
+# 每 15 分钟刷新仓库状态、用量、待办与发布，登录时启动卡片。
 set -euo pipefail
 
 DATA="$HOME/Library/Application Support/WeeklyReport"
 CONFIG="$DATA/config.json"
 mkdir -p "$DATA"
 if [ $# -gt 0 ]; then
-  python3 -c 'import json, os, sys; json.dump({"roots": [os.path.abspath(p) for p in sys.argv[2:]], "authors": []}, open(sys.argv[1], "w"), indent=2, ensure_ascii=False)' "$CONFIG" "$@"
+  # 只更新 roots，保留配置里的其他项
+  python3 -c 'import json, os, sys
+path = sys.argv[1]
+cfg = json.load(open(path)) if os.path.exists(path) else {"authors": []}
+cfg["roots"] = [os.path.abspath(p) for p in sys.argv[2:]]
+json.dump(cfg, open(path, "w"), indent=2, ensure_ascii=False)' "$CONFIG" "$@"
 elif [ ! -f "$CONFIG" ]; then
   echo "用法: $0 <仓库所在目录>..." >&2
   exit 1
@@ -49,6 +54,7 @@ cat > "$AGENTS/$GEN.plist" <<EOF
     <string>$APP/Contents/Resources/widgets/run.py</string>
     <string>weekly</string>
     <string>standup</string>
+    <string>hours</string>
   </array>
   <key>StartCalendarInterval</key><array>
     <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
@@ -69,6 +75,8 @@ cat > "$AGENTS/$LOCAL.plist" <<EOF
     <string>$APP/Contents/Resources/widgets/run.py</string>
     <string>repos</string>
     <string>usage</string>
+    <string>todo</string>
+    <string>releases</string>
   </array>
   <key>StartInterval</key><integer>900</integer>
   <key>RunAtLoad</key><true/>

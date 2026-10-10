@@ -43,9 +43,8 @@ def groups(config):
     return dict(sorted(result.items()))
 
 
-def commits(config, since):
-    """各仓库里我在 since 之后的提交，整理成给模型看的文本；没有提交返回空串。"""
-    sections = []
+def my_commits(config, since):
+    """逐条产出我在 since 之后的提交：(仓库名, 日期 YYYY-MM-DD, 分支, 标题, 说明)。"""
     for repo in repos(config):
         # 仓库自己的 user.email（没配则回落到全局），外加配置里追加的身份
         authors = {git(repo, "config", "user.email").strip(), *config.get("authors", [])} - {""}
@@ -53,9 +52,9 @@ def commits(config, since):
             continue
         log = git(
             repo, "log", "--branches", "--remotes", "--source", "--no-merges",
-            "--since", since, "--date=format:%m-%d", "--format=%x1e%ad%x1f%S%x1f%s%x1f%b",
+            "--since", since, "--date=short", "--format=%x1e%ad%x1f%S%x1f%s%x1f%b",
             *[f"--author={a}" for a in authors])
-        lines, seen = [], set()
+        seen = set()
         for record in log.split("\x1e"):
             if not record.strip():
                 continue
@@ -63,11 +62,16 @@ def commits(config, since):
             if subject in seen:  # 同一提交被 cherry-pick 到多个分支
                 continue
             seen.add(subject)
-            lines.append(f"{date} [{branch}] {subject}")
-            lines += ["    " + l for l in body.strip()[:500].splitlines() if l.strip()]
-        if lines:
-            sections.append(f"### {os.path.basename(repo)}\n" + "\n".join(lines))
-    return "\n\n".join(sections)
+            yield os.path.basename(repo), date, branch, subject, body.strip()
+
+
+def commits(config, since):
+    """各仓库里我在 since 之后的提交，整理成给模型看的文本；没有提交返回空串。"""
+    sections = collections.defaultdict(list)
+    for repo, date, branch, subject, body in my_commits(config, since):
+        sections[repo].append(f"{date[5:]} [{branch}] {subject}")
+        sections[repo] += ["    " + l for l in body[:500].splitlines() if l.strip()]
+    return "\n\n".join(f"### {repo}\n" + "\n".join(lines) for repo, lines in sections.items())
 
 
 def ask_claude(prompt):

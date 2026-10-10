@@ -5,6 +5,15 @@ struct Widget {
     let id: String      // 对应 widgets/<id>.py 和数据目录下的 <id>.md
     let title: String
     let icon: String    // 分块标题前的图标
+    var action: Action? = nil
+
+    // 标签页上的额外按钮：确认后运行 widgets/<script>.py
+    struct Action {
+        let script: String
+        let symbol: String
+        let help: String
+        let confirm: String
+    }
 }
 
 let widgets = [
@@ -12,6 +21,11 @@ let widgets = [
     Widget(id: "standup", title: "站会", icon: "calendar"),
     Widget(id: "repos", title: "仓库", icon: "folder.fill"),
     Widget(id: "usage", title: "用量", icon: "chart.bar.fill"),
+    Widget(id: "todo", title: "待办", icon: "checklist"),
+    Widget(id: "releases", title: "发布", icon: "shippingbox.fill"),
+    Widget(id: "hours", title: "工时", icon: "clock.fill", action: .init(
+        script: "hours_log", symbol: "checkmark.circle", help: "登记到 ONES",
+        confirm: "把卡片上待登记的工时写入 ONES？")),
 ]
 
 let dataDir = FileManager.default.homeDirectoryForCurrentUser
@@ -30,12 +44,13 @@ final class Model: ObservableObject {
         }
     }
 
-    func refresh(_ id: String) {
+    /// 运行 widgets/<script>.py 并重新加载；script 省略时就是重新生成该标签页
+    func refresh(_ id: String, script: String? = nil) {
         guard !busy.contains(id), let resources = Bundle.main.resourcePath else { return }
         busy.insert(id)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-        process.arguments = [resources + "/widgets/run.py", id]
+        process.arguments = [resources + "/widgets/run.py", script ?? id]
         process.terminationHandler = { p in
             DispatchQueue.main.async {
                 self.busy.remove(id)
@@ -105,6 +120,17 @@ struct CardView: View {
                 if busy {
                     ProgressView().controlSize(.small).frame(width: 26, height: 26)
                 } else {
+                    if let action = widget.action {
+                        IconButton(symbol: action.symbol, help: action.help) {
+                            let alert = NSAlert()
+                            alert.messageText = action.confirm
+                            alert.addButton(withTitle: "确定")
+                            alert.addButton(withTitle: "取消")
+                            if alert.runModal() == .alertFirstButtonReturn {
+                                model.refresh(widget.id, script: action.script)
+                            }
+                        }
+                    }
                     IconButton(symbol: "arrow.clockwise", help: "重新生成") { model.refresh(widget.id) }
                 }
                 IconButton(symbol: copied ? "checkmark" : "doc.on.doc", help: "复制 Markdown") {
@@ -118,7 +144,8 @@ struct CardView: View {
             .padding(.top, 16)
             .padding(.bottom, 10)
 
-            HStack(spacing: 6) {
+            ScrollView(.horizontal) {
+              HStack(spacing: 6) {
                 ForEach(widgets, id: \.id) { item in
                     Button(action: { tab = item.id }) {
                         Text(item.title)
@@ -133,8 +160,10 @@ struct CardView: View {
                     }
                     .buttonStyle(.plain)
                 }
+              }
+              .padding(.horizontal, 18)
             }
-            .padding(.horizontal, 18)
+            .scrollIndicators(.never)
             .padding(.bottom, 12)
 
             ScrollView {
@@ -202,7 +231,11 @@ struct CardView: View {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
         let nested = line.hasPrefix(" ")
         if trimmed.hasPrefix("分支：") || trimmed.hasPrefix("分支:") {
-            Label(String(trimmed.dropFirst(3)), systemImage: "arrow.triangle.branch")
+            Label {
+                Text(inline(String(trimmed.dropFirst(3))))
+            } icon: {
+                Image(systemName: "arrow.triangle.branch")
+            }
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         } else if trimmed.count > 4, trimmed.hasPrefix("**"), trimmed.hasSuffix("**") {
