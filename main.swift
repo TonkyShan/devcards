@@ -35,63 +35,158 @@ final class Model: ObservableObject {
     }
 }
 
-struct CardView: View {
-    @ObservedObject var model: Model
+struct ReportSection: Identifiable {
+    let id: Int
+    let title: String
+    var lines: [String] = []
+}
+
+struct IconButton: View {
+    let symbol: String
+    let help: String
+    let action: () -> Void
+    @State private var hovering = false
 
     var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 26, height: 26)
+                .background(Color.primary.opacity(hovering ? 0.14 : 0.06), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .onHover { hovering = $0 }
+        .help(help)
+    }
+}
+
+struct CardView: View {
+    @ObservedObject var model: Model
+    @State private var copied = false
+
+    var body: some View {
+        let report = parse(model.text)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                Text("本周周报").font(.headline)
-                if model.failed {
-                    Text("生成失败").font(.caption).foregroundStyle(.red)
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(report.title.isEmpty ? "本周周报" : report.title)
+                        .font(.system(size: 16, weight: .semibold))
+                    if model.failed {
+                        Text("生成失败，详见日志").font(.caption).foregroundStyle(.red)
+                    } else if model.busy {
+                        Text("正在生成…").font(.caption).foregroundStyle(.secondary)
+                    } else if !report.updated.isEmpty {
+                        Text(report.updated).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
                 if model.busy {
-                    ProgressView().controlSize(.small)
+                    ProgressView().controlSize(.small).frame(width: 26, height: 26)
                 } else {
-                    Button(action: model.refresh) { Image(systemName: "arrow.clockwise") }.help("重新生成")
+                    IconButton(symbol: "arrow.clockwise", help: "重新生成", action: model.refresh)
                 }
-                Button(action: model.copy) { Image(systemName: "doc.on.doc") }.help("复制 Markdown")
-                Button(action: { NSApp.terminate(nil) }) { Image(systemName: "xmark") }.help("退出")
+                IconButton(symbol: copied ? "checkmark" : "doc.on.doc", help: "复制 Markdown") {
+                    model.copy()
+                    copied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+                }
+                IconButton(symbol: "xmark", help: "退出") { NSApp.terminate(nil) }
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 5) {
-                    let lines = model.text.components(separatedBy: "\n")
-                    ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                        row(line)
+                VStack(spacing: 10) {
+                    ForEach(report.sections) { section in
+                        sectionCard(section)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
             }
+            .scrollIndicators(.never)
         }
         .font(.system(size: 13))
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.primary.opacity(0.1)))
+    }
+
+    func parse(_ text: String) -> (title: String, updated: String, sections: [ReportSection]) {
+        var title = "", updated = ""
+        var sections: [ReportSection] = []
+        for line in text.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("# ") {
+                title = String(trimmed.dropFirst(2))
+            } else if trimmed.hasPrefix("## ") {
+                sections.append(ReportSection(id: sections.count, title: String(trimmed.dropFirst(3))))
+            } else if trimmed.hasPrefix("更新于"), sections.isEmpty {
+                updated = trimmed
+            } else if !trimmed.isEmpty {
+                if sections.isEmpty { sections.append(ReportSection(id: 0, title: "")) }
+                sections[sections.count - 1].lines.append(line)
+            }
+        }
+        return (title, updated, sections)
+    }
+
+    func sectionCard(_ section: ReportSection) -> some View {
+        let isOverview = section.title.contains("概览")
+        return VStack(alignment: .leading, spacing: 6) {
+            if !section.title.isEmpty {
+                Label {
+                    Text(section.title).font(.system(size: 14, weight: .semibold))
+                } icon: {
+                    Image(systemName: isOverview ? "sparkles" : "shippingbox.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(isOverview ? Color.accentColor : Color.secondary)
+                }
+                .padding(.bottom, 2)
+            }
+            ForEach(Array(section.lines.enumerated()), id: \.offset) { _, line in
+                row(line)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            isOverview ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.05),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     @ViewBuilder
     func row(_ line: String) -> some View {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        let indent = CGFloat(line.prefix { $0 == " " }.count) * 6
-        if trimmed.hasPrefix("# ") {
-            Text(inline(String(trimmed.dropFirst(2)))).font(.title3.bold())
-        } else if trimmed.hasPrefix("## ") {
-            Text(inline(String(trimmed.dropFirst(3)))).font(.system(size: 15, weight: .bold)).padding(.top, 10)
+        let nested = line.hasPrefix(" ")
+        if trimmed.hasPrefix("分支：") || trimmed.hasPrefix("分支:") {
+            Label(String(trimmed.dropFirst(3)), systemImage: "arrow.triangle.branch")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        } else if trimmed.count > 4, trimmed.hasPrefix("**"), trimmed.hasSuffix("**") {
+            // 独占一行的加粗是分组名（新功能 / 修复 / 其他）
+            let name = String(trimmed.dropFirst(2).dropLast(2))
+            let color: Color = name.contains("新功能") ? .green : name.contains("修复") ? .orange : .gray
+            Text(name)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(color.opacity(0.15), in: Capsule())
+                .padding(.top, 6)
         } else if trimmed.hasPrefix("- ") {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("•").foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                Text(nested ? "–" : "•").foregroundStyle(.tertiary)
                 Text(inline(String(trimmed.dropFirst(2))))
+                    .lineSpacing(2.5)
+                    .foregroundStyle(nested ? .secondary : .primary)
             }
-            .padding(.leading, indent)
-        } else if !trimmed.isEmpty {
-            Text(inline(trimmed))
+            .padding(.leading, nested ? 14 : 0)
+        } else {
+            Text(inline(trimmed)).lineSpacing(2.5)
         }
     }
 

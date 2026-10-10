@@ -69,6 +69,8 @@ EOF
 
 for label in $GEN $CARD; do
   launchctl bootout "gui/$UID/$label" 2>/dev/null || true
+  # bootout 是异步的，旧服务没卸载完就 bootstrap 会报 I/O error
+  while launchctl print "gui/$UID/$label" &>/dev/null; do sleep 0.2; done
   launchctl bootstrap "gui/$UID" "$AGENTS/$label.plist"
 done
 echo "已安装：$APP"
