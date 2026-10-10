@@ -2,6 +2,8 @@
 
 macOS 桌面周报卡片：每天自动汇总本周一以来你在本地各 git 仓库的提交，用 [Claude Code](https://claude.com/claude-code) 整理成周会可用的周报（做了什么功能、在哪些分支、修了什么问题），显示在一张贴在桌面上的卡片里。
 
+<img src="docs/screenshot.png" width="460" alt="桌面周报卡片效果（示例数据）">
+
 ## 依赖
 
 - macOS 13+，Xcode Command Line Tools（`xcode-select --install`，提供 `swiftc`、`git`、`/usr/bin/python3`）
