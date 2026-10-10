@@ -43,8 +43,8 @@ def groups(config):
     return dict(sorted(result.items()))
 
 
-def my_commits(config, since):
-    """逐条产出我在 since 之后的提交：(仓库名, 日期 YYYY-MM-DD, 分支, 标题, 说明)。"""
+def my_commits(config, since, until=None):
+    """逐条产出我在 since 之后（until 之前）的提交：(仓库名, 日期 YYYY-MM-DD, 分支, 标题, 说明)。"""
     for repo in repos(config):
         # 仓库自己的 user.email（没配则回落到全局），外加配置里追加的身份
         authors = {git(repo, "config", "user.email").strip(), *config.get("authors", [])} - {""}
@@ -52,7 +52,8 @@ def my_commits(config, since):
             continue
         log = git(
             repo, "log", "--branches", "--remotes", "--source", "--no-merges",
-            "--since", since, "--date=short", "--format=%x1e%ad%x1f%S%x1f%s%x1f%b",
+            "--since", since, *(["--until", until] if until else []),
+            "--date=short", "--format=%x1e%ad%x1f%S%x1f%s%x1f%b",
             *[f"--author={a}" for a in authors])
         seen = set()
         for record in log.split("\x1e"):
@@ -65,10 +66,10 @@ def my_commits(config, since):
             yield os.path.basename(repo), date, branch, subject, body.strip()
 
 
-def commits(config, since):
-    """各仓库里我在 since 之后的提交，整理成给模型看的文本；没有提交返回空串。"""
+def commits(config, since, until=None):
+    """各仓库里我在 since 之后（until 之前）的提交，整理成给模型看的文本；没有提交返回空串。"""
     sections = collections.defaultdict(list)
-    for repo, date, branch, subject, body in my_commits(config, since):
+    for repo, date, branch, subject, body in my_commits(config, since, until):
         sections[repo].append(f"{date[5:]} [{branch}] {subject}")
         sections[repo] += ["    " + l for l in body[:500].splitlines() if l.strip()]
     return "\n\n".join(f"### {repo}\n" + "\n".join(lines) for repo, lines in sections.items())

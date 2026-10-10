@@ -1,6 +1,6 @@
 #!/bin/bash
 # 用法: ./install.sh <仓库所在目录>...
-# 编译桌面卡片应用，并安装三个 LaunchAgent：每天 9 点和 18 点（后者可用 HOUR=17 覆盖）生成周报、站会与工时、
+# 编译桌面卡片应用，并安装三个 LaunchAgent：每天 9 点和 18 点（后者可用 HOUR=17 覆盖）生成周报、站会、OKR 与工时、
 # 每 15 分钟刷新仓库状态、用量、待办与发布，登录时启动卡片。
 set -euo pipefail
 
@@ -54,6 +54,7 @@ cat > "$AGENTS/$GEN.plist" <<EOF
     <string>$APP/Contents/Resources/widgets/run.py</string>
     <string>weekly</string>
     <string>standup</string>
+    <string>okr</string>
     <string>hours</string>
   </array>
   <key>StartCalendarInterval</key><array>

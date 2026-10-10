@@ -19,6 +19,7 @@ struct Widget {
 let allWidgets = [
     Widget(id: "weekly", title: "周报", icon: "shippingbox.fill"),
     Widget(id: "standup", title: "站会", icon: "calendar"),
+    Widget(id: "okr", title: "OKR", icon: "target"),
     Widget(id: "repos", title: "仓库", icon: "folder.fill"),
     Widget(id: "usage", title: "用量", icon: "chart.bar.fill"),
     Widget(id: "todo", title: "待办", icon: "checklist"),
