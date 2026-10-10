@@ -4,7 +4,7 @@
 # 每 15 分钟刷新仓库状态、用量、待办与发布，登录时启动卡片。
 set -euo pipefail
 
-DATA="$HOME/Library/Application Support/WeeklyReport"
+DATA="$HOME/Library/Application Support/DevCards"
 CONFIG="$DATA/config.json"
 mkdir -p "$DATA"
 if [ $# -gt 0 ]; then
@@ -21,24 +21,24 @@ fi
 
 cd "$(dirname "$0")"
 
-APP="$PWD/build/WeeklyReport.app"
+APP="$PWD/build/DevCards.app"
 AGENTS="$HOME/Library/LaunchAgents"
-LOG="$HOME/Library/Logs/WeeklyReport.log"
-GEN=weeklyreport.generate
-LOCAL=weeklyreport.local
-CARD=weeklyreport.app
+LOG="$HOME/Library/Logs/DevCards.log"
+GEN=devcards.generate
+LOCAL=devcards.local
+CARD=devcards.app
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$AGENTS"
-swiftc -O main.swift -o "$APP/Contents/MacOS/WeeklyReport"
+swiftc -O main.swift -o "$APP/Contents/MacOS/DevCards"
 cp -R widgets "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>$CARD</string>
-  <key>CFBundleName</key><string>WeeklyReport</string>
-  <key>CFBundleExecutable</key><string>WeeklyReport</string>
+  <key>CFBundleName</key><string>DevCards</string>
+  <key>CFBundleExecutable</key><string>DevCards</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSUIElement</key><true/>
 </dict></plist>
@@ -91,7 +91,7 @@ cat > "$AGENTS/$CARD.plist" <<EOF
 <plist version="1.0"><dict>
   <key>Label</key><string>$CARD</string>
   <key>ProgramArguments</key><array>
-    <string>$APP/Contents/MacOS/WeeklyReport</string>
+    <string>$APP/Contents/MacOS/DevCards</string>
   </array>
   <key>RunAtLoad</key><true/>
 </dict></plist>

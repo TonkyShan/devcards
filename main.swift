@@ -29,7 +29,7 @@ let allWidgets = [
 ]
 
 let dataDir = FileManager.default.homeDirectoryForCurrentUser
-    .appendingPathComponent("Library/Application Support/WeeklyReport")
+    .appendingPathComponent("Library/Application Support/DevCards")
 
 // 配置里的 tabs 决定显示哪些标签及顺序，没配就全部显示
 let widgets: [Widget] = {
@@ -301,7 +301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         window.contentView = NSHostingView(rootView: CardView(model: model))
-        window.setFrameAutosaveName("WeeklyReportCard")
+        window.setFrameAutosaveName("DevCards")
         window.orderFront(nil)
 
         model.load()

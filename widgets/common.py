@@ -7,7 +7,7 @@ import re
 import shutil
 import subprocess
 
-DATA = os.path.expanduser("~/Library/Application Support/WeeklyReport")
+DATA = os.path.expanduser("~/Library/Application Support/DevCards")
 # launchd 环境的 PATH 里没有 ~/.local/bin
 CLAUDE = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")
 

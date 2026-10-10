@@ -1,4 +1,4 @@
-# WeeklyReport
+# DevCards
 
 macOS 桌面开发者卡片：一张贴在桌面上的卡片，用标签页切换几个小组件，数据都来自你本机的 git 仓库和 [Claude Code](https://claude.com/claude-code)。
 
@@ -14,7 +14,7 @@ macOS 桌面开发者卡片：一张贴在桌面上的卡片，用标签页切�
 
 前四个只需要本机的 git 和 claude；后三个要在配置里填数据源，没填时标签页只显示一句提示。
 
-<img src="docs/screenshot.png" width="460" alt="桌面周报卡片效果（示例数据）">
+<img src="docs/screenshot.png" width="460" alt="DevCards 卡片效果（示例数据）">
 
 ## 依赖
 
@@ -28,17 +28,17 @@ macOS 桌面开发者卡片：一张贴在桌面上的卡片，用标签页切�
 HOUR=17 ./install.sh ~/code    # 傍晚那次改到 17 点，默认 18 点
 ```
 
-脚本会编译 `build/WeeklyReport.app`，并安装三个 LaunchAgent：
+脚本会编译 `build/DevCards.app`，并安装三个 LaunchAgent：
 
-- `weeklyreport.generate`：每天 9 点和 18 点生成周报、站会与工时
-- `weeklyreport.local`：每 15 分钟刷新仓库状态、用量、待办与发布
-- `weeklyreport.app`：登录时启动桌面卡片
+- `devcards.generate`：每天 9 点和 18 点生成周报、站会与工时
+- `devcards.local`：每 15 分钟刷新仓库状态、用量、待办与发布
+- `devcards.app`：登录时启动桌面卡片
 
-卡片可拖动、可拉伸，右上角三个按钮分别是立即重新生成当前标签、复制 Markdown、退出。
+卡片可拖动、可拉伸，右上角三个按钮分别是立即重新生成当前标签、复制 Markdown、退出；工时标签多一个登记按钮。
 
 ## 配置
 
-`~/Library/Application Support/WeeklyReport/config.json`：
+`~/Library/Application Support/DevCards/config.json`：
 
 ```json
 {
@@ -92,14 +92,14 @@ HOUR=17 ./install.sh ~/code    # 傍晚那次改到 17 点，默认 18 点
 - 周报和站会会把提交记录发送给 Claude 用于生成摘要；其余标签不经过模型
 - 发布标签显示的是部署仓库里的期望版本，不保证集群已经跑到这一版
 - 仓库状态里的"落后远端"以上次 `git fetch` 的结果为准
-- 各标签内容：`~/Library/Application Support/WeeklyReport/<组件名>.md`，日志：`~/Library/Logs/WeeklyReport.log`
+- 各标签内容：`~/Library/Application Support/DevCards/<组件名>.md`，日志：`~/Library/Logs/DevCards.log`
 
 ## 卸载
 
 ```bash
-launchctl bootout gui/$UID/weeklyreport.generate
-launchctl bootout gui/$UID/weeklyreport.local
-launchctl bootout gui/$UID/weeklyreport.app
-rm ~/Library/LaunchAgents/weeklyreport.*.plist
-rm -r ~/Library/Application\ Support/WeeklyReport
+launchctl bootout gui/$UID/devcards.generate
+launchctl bootout gui/$UID/devcards.local
+launchctl bootout gui/$UID/devcards.app
+rm ~/Library/LaunchAgents/devcards.*.plist
+rm -r ~/Library/Application\ Support/DevCards
 ```
