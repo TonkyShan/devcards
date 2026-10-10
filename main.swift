@@ -1,37 +1,54 @@
 import AppKit
 import SwiftUI
 
-let reportURL = FileManager.default.homeDirectoryForCurrentUser
-    .appendingPathComponent("Library/Application Support/WeeklyReport/report.md")
+struct Widget {
+    let id: String      // 对应 widgets/<id>.py 和数据目录下的 <id>.md
+    let title: String
+    let icon: String    // 分块标题前的图标
+}
+
+let widgets = [
+    Widget(id: "weekly", title: "周报", icon: "shippingbox.fill"),
+    Widget(id: "standup", title: "站会", icon: "calendar"),
+    Widget(id: "repos", title: "仓库", icon: "folder.fill"),
+    Widget(id: "usage", title: "用量", icon: "chart.bar.fill"),
+]
+
+let dataDir = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent("Library/Application Support/WeeklyReport")
 
 final class Model: ObservableObject {
-    @Published var text = ""
-    @Published var busy = false
-    @Published var failed = false
+    @Published var texts: [String: String] = [:]
+    @Published var busy: Set<String> = []
+    @Published var failed: Set<String> = []
 
     func load() {
-        text = (try? String(contentsOf: reportURL, encoding: .utf8)) ?? "还没有周报，点右上角刷新按钮生成。"
+        for widget in widgets {
+            texts[widget.id] = (try? String(
+                contentsOf: dataDir.appendingPathComponent(widget.id + ".md"), encoding: .utf8))
+                ?? "还没有内容，点右上角刷新按钮生成。"
+        }
     }
 
-    func refresh() {
-        guard !busy, let script = Bundle.main.path(forResource: "generate", ofType: "py") else { return }
-        busy = true
+    func refresh(_ id: String) {
+        guard !busy.contains(id), let resources = Bundle.main.resourcePath else { return }
+        busy.insert(id)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-        process.arguments = [script]
+        process.arguments = [resources + "/widgets/run.py", id]
         process.terminationHandler = { p in
             DispatchQueue.main.async {
-                self.busy = false
-                self.failed = p.terminationStatus != 0
+                self.busy.remove(id)
+                if p.terminationStatus == 0 { self.failed.remove(id) } else { self.failed.insert(id) }
                 self.load()
             }
         }
-        do { try process.run() } catch { busy = false; failed = true }
+        do { try process.run() } catch { busy.remove(id); failed.insert(id) }
     }
 
-    func copy() {
+    func copy(_ id: String) {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        NSPasteboard.general.setString(texts[id] ?? "", forType: .string)
     }
 }
 
@@ -65,30 +82,33 @@ struct IconButton: View {
 struct CardView: View {
     @ObservedObject var model: Model
     @State private var copied = false
+    @AppStorage("tab") private var tab = widgets[0].id
 
     var body: some View {
-        let report = parse(model.text)
+        let widget = widgets.first { $0.id == tab } ?? widgets[0]
+        let report = parse(model.texts[widget.id] ?? "")
+        let busy = model.busy.contains(widget.id)
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(report.title.isEmpty ? "本周周报" : report.title)
+                    Text(report.title.isEmpty ? widget.title : report.title)
                         .font(.system(size: 16, weight: .semibold))
-                    if model.failed {
+                    if model.failed.contains(widget.id) {
                         Text("生成失败，详见日志").font(.caption).foregroundStyle(.red)
-                    } else if model.busy {
+                    } else if busy {
                         Text("正在生成…").font(.caption).foregroundStyle(.secondary)
                     } else if !report.updated.isEmpty {
                         Text(report.updated).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
-                if model.busy {
+                if busy {
                     ProgressView().controlSize(.small).frame(width: 26, height: 26)
                 } else {
-                    IconButton(symbol: "arrow.clockwise", help: "重新生成", action: model.refresh)
+                    IconButton(symbol: "arrow.clockwise", help: "重新生成") { model.refresh(widget.id) }
                 }
                 IconButton(symbol: copied ? "checkmark" : "doc.on.doc", help: "复制 Markdown") {
-                    model.copy()
+                    model.copy(widget.id)
                     copied = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
                 }
@@ -96,12 +116,31 @@ struct CardView: View {
             }
             .padding(.horizontal, 18)
             .padding(.top, 16)
+            .padding(.bottom, 10)
+
+            HStack(spacing: 6) {
+                ForEach(widgets, id: \.id) { item in
+                    Button(action: { tab = item.id }) {
+                        Text(item.title)
+                            .font(.system(size: 12, weight: .medium))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(
+                                item.id == tab ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.06),
+                                in: Capsule())
+                            .foregroundStyle(item.id == tab ? Color.accentColor : Color.secondary)
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 18)
             .padding(.bottom, 12)
 
             ScrollView {
                 VStack(spacing: 10) {
                     ForEach(report.sections) { section in
-                        sectionCard(section)
+                        sectionCard(section, icon: widget.icon)
                     }
                 }
                 .padding(.horizontal, 12)
@@ -134,14 +173,14 @@ struct CardView: View {
         return (title, updated, sections)
     }
 
-    func sectionCard(_ section: ReportSection) -> some View {
+    func sectionCard(_ section: ReportSection, icon: String) -> some View {
         let isOverview = section.title.contains("概览")
         return VStack(alignment: .leading, spacing: 6) {
             if !section.title.isEmpty {
                 Label {
                     Text(section.title).font(.system(size: 14, weight: .semibold))
                 } icon: {
-                    Image(systemName: isOverview ? "sparkles" : "shippingbox.fill")
+                    Image(systemName: isOverview ? "sparkles" : icon)
                         .font(.system(size: 12))
                         .foregroundStyle(isOverview ? Color.accentColor : Color.secondary)
                 }
@@ -226,7 +265,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.load()
         // 定时任务更新了文件后同步到卡片
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
-            if !self.model.busy { self.model.load() }
+            self.model.load()
         }
     }
 }
