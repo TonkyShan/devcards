@@ -27,6 +27,7 @@ let allWidgets = [
     Widget(id: "hours", title: "工时", icon: "clock.fill", action: .init(
         script: "hours_log", symbol: "checkmark.circle", help: "登记到 ONES",
         confirm: "把卡片上待登记的工时写入 ONES？")),
+    Widget(id: "upload", title: "上传", icon: "tray.and.arrow.up.fill"),
 ]
 
 let dataDir = FileManager.default.homeDirectoryForCurrentUser
@@ -56,11 +57,20 @@ final class Model: ObservableObject {
 
     /// 运行 widgets/<script>.py 并重新加载；script 省略时就是重新生成该标签页
     func refresh(_ id: String, script: String? = nil) {
+        run(id, ["run.py", script ?? id])
+    }
+
+    /// 拖到卡片上的文件交给 widgets/upload.py 传到服务器
+    func upload(_ files: [URL]) {
+        run("upload", ["upload.py"] + files.map(\.path))
+    }
+
+    private func run(_ id: String, _ arguments: [String]) {
         guard !busy.contains(id), let resources = Bundle.main.resourcePath else { return }
         busy.insert(id)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-        process.arguments = [resources + "/widgets/run.py", script ?? id]
+        process.arguments = [resources + "/widgets/" + arguments[0]] + arguments.dropFirst()
         process.terminationHandler = { p in
             DispatchQueue.main.async {
                 self.busy.remove(id)
@@ -107,6 +117,7 @@ struct IconButton: View {
 struct CardView: View {
     @ObservedObject var model: Model
     @State private var copied = false
+    @State private var dropping = false
     @AppStorage("tab") private var tab = widgets[0].id
 
     var body: some View {
@@ -190,7 +201,27 @@ struct CardView: View {
         .font(.system(size: 13))
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.primary.opacity(0.1)))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .strokeBorder(dropping ? Color.accentColor : Color.primary.opacity(0.1), lineWidth: dropping ? 2 : 1))
+        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
+            guard widgets.contains(where: { $0.id == "upload" }) else { return false }
+            var files: [URL] = []
+            let group = DispatchGroup()
+            for provider in providers {
+                group.enter()
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    DispatchQueue.main.async {
+                        if let url { files.append(url) }
+                        group.leave()
+                    }
+                }
+            }
+            group.notify(queue: .main) {
+                tab = "upload"
+                model.upload(files)
+            }
+            return true
+        }
     }
 
     func parse(_ text: String) -> (title: String, updated: String, sections: [ReportSection]) {
