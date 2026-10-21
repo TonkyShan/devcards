@@ -17,7 +17,7 @@ def ssh(host, command, **kwargs):
 
 
 def send(host, folder, files):
-    """打 tar 流过去解开；umask 022 让其他机器上 uid 不同的同名账号也读得到。"""
+    """打 tar 流过去解开，再放开读权限，让其他机器上 uid 不同的同名账号也读得到（本地是 600 的文件也一样）。"""
     args = []
     for f in files:
         args += ["-C", os.path.dirname(f), os.path.basename(f)]
@@ -25,7 +25,9 @@ def send(host, folder, files):
     tar = subprocess.Popen(["tar", "-cf", "-", *args], stdout=subprocess.PIPE,
                            env={**os.environ, "COPYFILE_DISABLE": "1"})
     q = shlex.quote(folder)
-    result = ssh(host, f"umask 022 && mkdir -p {q} && tar -xf - -C {q} --no-same-owner --no-same-permissions",
+    names = " ".join(shlex.quote(os.path.basename(f)) for f in files)
+    result = ssh(host, f"umask 022 && mkdir -p {q} && tar -xf - -C {q} --no-same-owner"
+                       f" && cd {q} && chmod -R a+rX -- {names}",
                  stdin=tar.stdout)
     tar.stdout.close()
     return tar.wait() == 0 and result.returncode == 0
