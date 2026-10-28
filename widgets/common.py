@@ -7,7 +7,8 @@ import re
 import shutil
 import subprocess
 
-DATA = os.path.expanduser("~/Library/Application Support/DevCards")
+# DEVCARDS_DATA 可换数据目录，录演示时用 docs/demo 的示例数据
+DATA = os.path.expanduser(os.environ.get("DEVCARDS_DATA", "~/Library/Application Support/DevCards"))
 # launchd 环境的 PATH 里没有 ~/.local/bin
 CLAUDE = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude")
 

@@ -30,8 +30,10 @@ let allWidgets = [
     Widget(id: "upload", title: "上传", icon: "tray.and.arrow.up.fill"),
 ]
 
-let dataDir = FileManager.default.homeDirectoryForCurrentUser
-    .appendingPathComponent("Library/Application Support/DevCards")
+// DEVCARDS_DATA 可换数据目录，录演示时用 docs/demo 的示例数据
+let dataDir = ProcessInfo.processInfo.environment["DEVCARDS_DATA"]
+    .map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+    ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/DevCards")
 
 // 配置里的 tabs 决定显示哪些标签及顺序，没配就全部显示
 let widgets: [Widget] = {
@@ -341,6 +343,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             self.model.load()
         }
+#if DEMO
+        // 演示版（./demo.sh 用 -D DEMO 编译）：每 2.5 秒自动切到下一个标签，方便录屏
+        var index = 0
+        UserDefaults.standard.set(widgets[0].id, forKey: "tab")
+        Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
+            index = (index + 1) % widgets.count
+            UserDefaults.standard.set(widgets[index].id, forKey: "tab")
+        }
+#endif
     }
 }
 

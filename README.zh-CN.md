@@ -18,7 +18,7 @@ macOS 桌面开发者卡片：一张贴在桌面上的卡片，用标签页切�
 
 前五个只需要本机的 git 和 claude；后四个要在配置里填数据源，没填时标签页只显示一句提示。
 
-<img src="docs/screenshot.png" width="460" alt="DevCards 卡片效果（示例数据）">
+<img src="docs/demo.gif" width="460" alt="DevCards 自动切换各个标签（示例数据）">
 
 ## 依赖
 
@@ -96,6 +96,8 @@ HOUR=17 ./install.sh ~/code    # 傍晚那次改到 17 点，默认 18 点
 3. 在 `install.sh` 里把 `foo` 加到某个定时任务的参数里
 
 手动运行：`python3 widgets/run.py foo`。
+
+`./demo.sh` 会用 `docs/demo/` 里的示例数据单独打开一张卡片，自动轮播各个标签（就是上面那张动图），不碰你自己的数据。
 
 ## 说明
 

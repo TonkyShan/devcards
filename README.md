@@ -22,7 +22,7 @@ The first five tabs need only git and claude on your machine. The last four need
 
 [ONES](https://ones.cn) is a project management tool, connected here through its MCP server.
 
-<img src="docs/screenshot.png" width="460" alt="DevCards card (sample data)">
+<img src="docs/demo.gif" width="460" alt="DevCards cycling through its tabs (sample data)">
 
 ## Requirements
 
@@ -100,6 +100,8 @@ Each widget is a Python script under `widgets/` that does one thing: write Markd
 3. Add `foo` to one of the scheduled jobs' arguments in `install.sh`
 
 Run it by hand with `python3 widgets/run.py foo`.
+
+`./demo.sh` opens a separate card on the sample data in `docs/demo/` (cycling through the tabs, as in the GIF above), without touching your own data.
 
 ## Notes
 
