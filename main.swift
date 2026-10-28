@@ -344,7 +344,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.model.load()
         }
 #if DEMO
-        // 演示版（./demo.sh 用 -D DEMO 编译）：每 2.5 秒自动切到下一个标签，方便录屏
+        // 演示版（./demo.sh 用 -D DEMO 编译）：卡片浮到最前，背后垫一块桌面壁纸，录屏时才拍得出磨砂效果
+        let backdrop = NSWindow(contentRect: window.frame.insetBy(dx: -48, dy: -48),
+                                styleMask: [.borderless], backing: .buffered, defer: false)
+        backdrop.contentView?.wantsLayer = true
+        if let url = NSWorkspace.shared.desktopImageURL(for: NSScreen.main!), let image = NSImage(contentsOf: url) {
+            backdrop.contentView?.layer?.contents = image
+            backdrop.contentView?.layer?.contentsGravity = .resizeAspectFill
+        } else {
+            backdrop.backgroundColor = .systemTeal
+        }
+        backdrop.level = .floating
+        window.level = NSWindow.Level(rawValue: NSWindow.Level.floating.rawValue + 1)
+        backdrop.orderFront(nil)
+        window.orderFront(nil)
+        // 录屏区域（左上角为原点的屏幕坐标，给 screencapture -R 用）
+        let f = backdrop.frame, top = NSScreen.screens[0].frame.maxY - f.maxY
+        print("DEMO_REGION \(Int(f.minX)),\(Int(top)),\(Int(f.width)),\(Int(f.height))")
+        fflush(stdout)
+        // 每 2.5 秒自动切到下一个标签
         var index = 0
         UserDefaults.standard.set(widgets[0].id, forKey: "tab")
         Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
