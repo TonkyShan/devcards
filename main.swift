@@ -67,6 +67,15 @@ final class Model: ObservableObject {
         run("upload", ["upload.py"] + files.map(\.path))
     }
 
+    /// 周报按选定的时间段生成；两个日期都省略时回到本周
+    func weekly(since: Date? = nil, until: Date? = nil) {
+        guard let since, let until else { return run("weekly", ["weekly.py", "reset"]) }
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "en_US_POSIX")
+        format.dateFormat = "yyyy-MM-dd"
+        run("weekly", ["weekly.py", format.string(from: since), format.string(from: until)])
+    }
+
     private func run(_ id: String, _ arguments: [String]) {
         guard !busy.contains(id), let resources = Bundle.main.resourcePath else { return }
         busy.insert(id)
@@ -120,6 +129,9 @@ struct CardView: View {
     @ObservedObject var model: Model
     @State private var copied = false
     @State private var dropping = false
+    @State private var pickingRange = false
+    @State private var since = Calendar(identifier: .iso8601).dateInterval(of: .weekOfYear, for: Date())!.start
+    @State private var until = Date()
     @AppStorage("tab") private var tab = widgets[0].id
 
     var body: some View {
@@ -153,6 +165,10 @@ struct CardView: View {
                                 model.refresh(widget.id, script: action.script)
                             }
                         }
+                    }
+                    if widget.id == "weekly" {
+                        IconButton(symbol: "calendar", help: "选择时间段") { pickingRange = true }
+                            .popover(isPresented: $pickingRange) { rangePicker }
                     }
                     IconButton(symbol: "arrow.clockwise", help: "重新生成") { model.refresh(widget.id) }
                 }
@@ -224,6 +240,32 @@ struct CardView: View {
             }
             return true
         }
+    }
+
+    var rangePicker: some View {
+        let thisMonday = Calendar(identifier: .iso8601).dateInterval(of: .weekOfYear, for: Date())!.start
+        return VStack(alignment: .leading, spacing: 10) {
+            DatePicker("开始", selection: $since, in: ...until, displayedComponents: .date)
+            DatePicker("结束", selection: $until, in: since...Date(), displayedComponents: .date)
+            HStack {
+                Button("本周") {
+                    pickingRange = false
+                    model.weekly()
+                }
+                Button("上周+本周") {
+                    pickingRange = false
+                    model.weekly(since: thisMonday.addingTimeInterval(-7 * 86400), until: Date())
+                }
+                Spacer()
+                Button("生成") {
+                    pickingRange = false
+                    model.weekly(since: since, until: until)
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(14)
+        .frame(width: 280)
     }
 
     func parse(_ text: String) -> (title: String, updated: String, sections: [ReportSection]) {

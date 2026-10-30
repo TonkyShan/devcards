@@ -8,7 +8,7 @@ A developer card for the macOS desktop: one card pinned to your desktop, with ta
 
 | Tab | What it shows | Refresh |
 |---|---|---|
-| Weekly | Your commits across repositories since Monday, written up by claude as a weekly report (features, branches, fixes) | Daily at 9:00 and 18:00 |
+| Weekly | Your commits across repositories since Monday, or over a date range picked with the calendar button, written up by claude as a weekly report (features, branches, fixes) | Daily at 9:00 and 18:00 |
 | Standup | Commits since the previous working day, turned into talking points for standup | Daily at 9:00 and 18:00 |
 | OKR | Features shipped last month, grouped by repository, plus a draft of this month's OKRs | Daily at 9:00 and 18:00 |
 | Repos | Repositories with uncommitted changes or unpushed commits, grouped | Every 15 minutes |

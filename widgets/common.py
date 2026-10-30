@@ -61,6 +61,8 @@ def my_commits(config, since, until=None):
             if not record.strip():
                 continue
             date, branch, subject, body = record.split("\x1f", 3)
+            if date < since[:10]:  # --since 看提交日期，rebase 过的旧提交也会出现，按作者日期再滤一次
+                continue
             if subject in seen:  # 同一提交被 cherry-pick 到多个分支
                 continue
             seen.add(subject)
